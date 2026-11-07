@@ -14,6 +14,8 @@
   --ktx:#1f5eff;--itx:#0f9d76;--mgh:#d9822b;--srt:#7b3fe4;--warn:#c2410c;--good:#0f9d76;
   --shadow:0 1px 2px rgba(0,0,0,.04),0 4px 16px rgba(0,0,0,.05);
   --r:14px;
+  --ease:cubic-bezier(.22,1,.36,1);   /* 빠르게 시작해 부드럽게 멈춤 */
+  --spring:cubic-bezier(.34,1.32,.64,1); /* 살짝 튕기며 멈춤 */
 }
 @media (prefers-color-scheme:dark){:root{
   --bg:#121212;--card:#1c1c1b;--soft:#262624;--ink:#f1efea;--sub:#a29e96;--faint:#6b6862;--line:#2e2d2b;
@@ -24,7 +26,8 @@
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Pretendard Variable","Pretendard",-apple-system,system-ui,sans-serif;-webkit-tap-highlight-color:transparent}
-button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;transition:transform .22s var(--ease),background-color .25s var(--ease),color .25s var(--ease),border-color .25s var(--ease),box-shadow .25s var(--ease),opacity .25s}
+button:active:not(:disabled):not(.swap){transform:scale(.95);transition-duration:.08s}
 button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .num{font-variant-numeric:tabular-nums}
 
@@ -32,12 +35,13 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 .layout{max-width:1440px;margin:0 auto;padding:16px 16px calc(24px + env(safe-area-inset-bottom))}
 .panel{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;min-width:0}
 .results{margin-top:20px;min-width:0}
-h1{font-size:19px;margin:4px 2px 14px;letter-spacing:-.02em;display:flex;align-items:center;gap:8px}
-h1 small{font-size:12px;font-weight:500;color:var(--sub)}
+h1{font-size:26px;line-height:1.25;font-weight:800;margin:6px 2px 10px;letter-spacing:-.03em}
+h1 small{display:block;font-size:14px;font-weight:500;color:var(--sub);letter-spacing:-.01em;margin-top:2px}
+@media (min-width:960px){h1{font-size:30px;margin:2px 2px 14px}}
 @media (min-width:960px){
   .layout{display:grid;grid-template-columns:400px minmax(0,1fr);gap:28px;padding:24px 28px}
   .panel{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);overflow:auto;padding:2px 4px 2px 2px;scrollbar-width:thin}
-  .results{margin-top:0;padding-top:42px}
+  .results{margin-top:0;padding-top:87px}
   .go-wrap{position:sticky;bottom:0}
   #back{display:none!important}
 }
@@ -62,12 +66,16 @@ h1 small{font-size:12px;font-weight:500;color:var(--sub)}
 .add:hover{border-color:var(--accent);color:var(--accent)}
 .swap{position:absolute;right:12px;top:50%;transform:translateY(-50%);width:36px;height:36px;border-radius:99px;background:var(--card);border:1px solid var(--line);display:grid;place-items:center;color:var(--sub);z-index:1;box-shadow:var(--shadow)}
 .swap:hover{color:var(--accent);border-color:var(--accent)}
+.swap svg{transition:transform .45s var(--spring)}
+.chip.auto{animation:pop .3s var(--ease) both}
 .route .field-head{padding-right:44px}
 
 /* 토글 스위치 */
 .switch{margin-left:auto;display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--sub);user-select:none;padding:4px 0}
-.switch .trk{width:34px;height:20px;border-radius:99px;background:var(--line);position:relative;transition:background .15s;flex:none}
-.switch .trk::after{content:"";position:absolute;left:2px;top:2px;width:16px;height:16px;border-radius:99px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .15s}
+.switch .trk{width:34px;height:20px;border-radius:99px;background:var(--line);position:relative;transition:background .3s var(--ease);flex:none}
+.switch .trk::after{content:"";position:absolute;left:2px;top:2px;width:16px;height:16px;border-radius:99px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .35s var(--spring),width .2s var(--ease)}
+.switch:active .trk::after{width:20px}
+.switch[aria-checked=true]:active .trk::after{transform:translateX(10px)}
 .switch[aria-checked=true]{color:var(--accent)}
 .switch[aria-checked=true] .trk{background:var(--accent)}
 .switch[aria-checked=true] .trk::after{transform:translateX(14px)}
@@ -81,28 +89,66 @@ h1 small{font-size:12px;font-weight:500;color:var(--sub)}
 .day.we span{color:var(--warn)}
 .day[aria-pressed=true]{background:var(--accent);color:var(--on-accent)}
 .day[aria-pressed=true] b,.day[aria-pressed=true] span{color:inherit}
-.day.more{display:grid;place-items:center;font-size:13px;font-weight:600;color:var(--sub);border:1px dashed var(--faint);background:none}
+.day.more{display:grid;place-items:center;gap:2px;font-size:12px;font-weight:600;color:var(--sub);border:1px dashed var(--faint);background:none}
+.day.more svg{color:var(--faint)}
+.day.more[aria-expanded=true]{border-style:solid;border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+.day.more[aria-expanded=true] svg{color:var(--accent)}
+/* 달력(브라우저 기본 창 대신 직접 그림) */
+.cal{padding-top:12px}
+.cal[hidden]{display:none}
+.cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.cal-head b{font-size:15px;font-weight:700}
+.cal-nav{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;color:var(--sub);font-size:18px}
+.cal-nav:hover:not(:disabled){background:var(--soft);color:var(--ink)}
+.cal-nav:disabled{opacity:.3;cursor:default}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;text-align:center}
+.cal-grid .wd{font-size:11px;font-weight:600;color:var(--faint);padding:2px 0 4px}
+.cal-grid .wd.sun,.cal-grid .sun{color:var(--warn)}
+.cal-grid .sat{color:var(--accent)}
+.cal-grid button{height:38px;border-radius:10px;font-size:15px;font-weight:600}
+.cal-grid button:hover:not(:disabled){background:var(--soft)}
+.cal-grid button:disabled{color:var(--line);font-weight:500;cursor:default}
+.cal-grid button.today{box-shadow:inset 0 0 0 1px var(--faint)}
+.cal-grid button[aria-pressed=true]{background:var(--accent);color:var(--on-accent)}
+.cal-foot{font-size:12px;color:var(--sub);margin:8px 0 0}
 
 /* 시각 */
 .timebox{display:flex;align-items:center;gap:6px}
 .step{width:44px;height:44px;border-radius:12px;background:var(--soft);font-size:13px;font-weight:600;color:var(--sub);flex:none}
 .step:hover{color:var(--accent)}
-.tdisp{flex:1;height:44px;border-radius:12px;background:var(--soft);font-size:22px;font-weight:700;letter-spacing:-.01em;position:relative}
+.tdisp{flex:1;height:44px;border-radius:12px;background:var(--soft);font-size:22px;font-weight:700;letter-spacing:-.01em;display:flex;align-items:center;justify-content:center;gap:2px;border:1px solid transparent}
 .tdisp small{font-size:12px;font-weight:500;color:var(--sub);margin-left:4px}
-.ghost{position:absolute;inset:0;opacity:0;width:100%;height:100%;border:0;padding:0;cursor:pointer}
+.tdisp svg{color:var(--faint);margin-left:4px;transition:transform .15s}
+.tdisp:hover{border-color:var(--line)}
+.tdisp[aria-expanded=true]{border-color:var(--accent);background:var(--accent-soft)}
+.tdisp[aria-expanded=true] svg{transform:rotate(180deg);color:var(--accent)}
+/* 시각 선택(브라우저 기본 창 대신 직접 그림) */
+.tp{padding-top:12px;display:grid;gap:6px}
+#tval{display:inline-block}
+.tp[hidden]{display:none}
+.tp-lbl{font-size:12px;font-weight:600;color:var(--sub);display:flex;justify-content:space-between}
+.tp-lbl + .tp-grid{margin-bottom:6px}
+.tp-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:5px}
+.tp-grid button{height:38px;border-radius:10px;background:var(--soft);font-size:15px;font-weight:600}
+.tp-grid button:hover{color:var(--accent)}
+.tp-grid button.dim{color:var(--faint);font-weight:500}
+.tp-grid button[aria-pressed=true]{background:var(--accent);color:var(--on-accent)}
 .now{height:44px;padding:0 12px;border-radius:12px;border:1px solid var(--line);font-size:13px;font-weight:600;color:var(--sub);flex:none}
 .now:hover{color:var(--accent);border-color:var(--accent)}
 
 /* 세그먼트 */
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;background:var(--soft);border-radius:12px;padding:3px;gap:2px}
+.seg{--p:3px;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;background:var(--soft);border-radius:12px;padding:var(--p);gap:2px;position:relative;isolation:isolate}
+/* 선택 표시가 버튼 사이를 미끄러져 이동 */
+.seg::before{content:"";position:absolute;z-index:-1;top:var(--p);bottom:var(--p);left:var(--p);width:calc((100% - 2 * var(--p) - (var(--n,3) - 1) * 2px) / var(--n,3));border-radius:9px;background:var(--card);box-shadow:0 1px 3px rgba(0,0,0,.12);transform:translateX(calc(var(--i,0) * (100% + 2px)));transition:transform .42s var(--spring)}
 .seg button{height:38px;border-radius:9px;font-size:14px;font-weight:600;color:var(--sub)}
-.seg button[aria-pressed=true]{background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.seg button[aria-pressed=true]{color:var(--ink)}
+.seg button:active:not(:disabled){transform:scale(.97)}
 .stepper{display:flex;align-items:center;background:var(--soft);border-radius:12px;padding:3px;height:44px}
 .stepper button{width:38px;height:38px;border-radius:9px;font-size:18px;color:var(--sub)}
 .stepper button:hover{background:var(--card);color:var(--ink)}
 .stepper output{flex:1;text-align:center;font-weight:700;font-size:15px}
-.hint{font-size:12px;color:var(--sub);margin:8px 0 0}
+.hint{font-size:12px;color:var(--sub);margin:0;padding-top:8px}
 
 /* 환승 후보 */
 .hubsum{display:flex;flex-wrap:wrap;gap:4px;font-size:13px;color:var(--sub)}
@@ -117,9 +163,10 @@ h1 small{font-size:12px;font-weight:500;color:var(--sub)}
 
 /* ---------- 결과 ---------- */
 .rhead{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:0 2px 12px}
+.rhead{animation:rise .45s var(--ease) both}
 .rtitle{font-size:17px;font-weight:700;letter-spacing:-.02em}
 .rmeta{font-size:13px;color:var(--sub)}
-.rhead .seg{margin-left:auto;padding:2px}
+.rhead .seg{margin-left:auto;--p:2px}
 .rhead .seg button{height:32px;padding:0 12px;font-size:13px}
 #back{display:inline-flex;align-items:center;gap:4px;font-size:13px;font-weight:600;color:var(--accent);margin:0 2px 10px}
 #status{font-size:13px;color:var(--sub);margin:0 2px 12px}
@@ -129,7 +176,8 @@ h1 small{font-size:12px;font-weight:500;color:var(--sub)}
 .empty{grid-column:1/-1;text-align:center;color:var(--sub);padding:48px 16px;border:1px dashed var(--line);border-radius:var(--r)}
 .empty b{display:block;color:var(--ink);font-size:16px;margin-bottom:4px}
 
-.j{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;box-shadow:var(--shadow)}
+.j{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;box-shadow:var(--shadow);animation:rise .55s var(--ease) both;animation-delay:calc(var(--k,0) * 45ms)}
+.empty,#status.err{animation:rise .45s var(--ease) both}
 .j.best{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),var(--shadow)}
 .jhead{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
 .time{font-size:22px;font-weight:800;letter-spacing:-.03em}
@@ -157,16 +205,37 @@ h1 small{font-size:12px;font-weight:500;color:var(--sub)}
 
 .sk{height:150px;border-radius:var(--r);background:linear-gradient(90deg,var(--card) 0%,var(--soft) 50%,var(--card) 100%);background-size:200% 100%;animation:sh 1.2s infinite linear;border:1px solid var(--line)}
 @keyframes sh{to{background-position:-200% 0}}
+.sk{animation:sh 1.2s infinite linear,fade .3s var(--ease) both}
+.sk:nth-child(2){animation-delay:0s,.06s}.sk:nth-child(3){animation-delay:0s,.12s}
+
+/* ---------- 움직임 ---------- */
+@keyframes rise{from{opacity:0;transform:translateY(10px)}}
+@keyframes fade{from{opacity:0}}
+@keyframes fadeout{to{opacity:0}}
+@keyframes pop{from{opacity:0;transform:scale(.8)}}
+@keyframes zoomin{from{opacity:0;transform:translateY(8px) scale(.97)}}
+@keyframes zoomout{to{opacity:0;transform:translateY(6px) scale(.98)}}
+@keyframes sheetin{from{transform:translateY(100%)}}
+@keyframes sheetout{to{transform:translateY(100%)}}
+/* 처음 열 때 패널이 위에서부터 차례로 */
+.panel > *{animation:rise .6s var(--ease) both}
+.panel > :nth-child(2){animation-delay:.04s}.panel > :nth-child(3){animation-delay:.08s}.panel > :nth-child(4){animation-delay:.12s}
+.panel > :nth-child(5){animation-delay:.16s}.panel > :nth-child(6){animation-delay:.2s}.panel > :nth-child(7){animation-delay:.24s}
+.results > *{animation:fade .6s var(--ease) .2s both}
 
 /* ---------- 역 선택 시트 ---------- */
 dialog{padding:0;border:0;background:var(--card);color:var(--ink);width:100%;max-width:760px;max-height:min(86vh,820px);border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
 dialog[open]{display:flex;flex-direction:column}
 dialog::backdrop{background:rgba(0,0,0,.45)}
+dialog[open]{animation:zoomin .34s var(--ease)}
+dialog[open]::backdrop{animation:fade .3s var(--ease)}
+dialog.closing{animation:zoomout .22s var(--ease) forwards}
+dialog.closing::backdrop{animation:fadeout .22s var(--ease) forwards}
 @media (max-width:640px){
   dialog{max-width:none;max-height:none;height:92dvh;margin:auto 0 0;border-radius:20px 20px 0 0}
-  dialog[open]{animation:up .2s ease-out}
+  dialog[open]{animation:sheetin .42s var(--ease)}
+  dialog.closing{animation:sheetout .26s cubic-bezier(.4,0,1,1) forwards}
 }
-@keyframes up{from{transform:translateY(30px);opacity:.6}}
 .pk-head{padding:14px 16px 10px;border-bottom:1px solid var(--line);display:grid;gap:10px}
 .pk-top{display:flex;align-items:center;gap:10px}
 .pk-top h2{font-size:17px;margin:0;letter-spacing:-.02em}
@@ -188,7 +257,8 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 .stb{position:relative;min-height:42px;padding:6px 6px;border-radius:10px;border:1px solid var(--line);background:var(--card);font-size:14px;font-weight:500;line-height:1.2;word-break:keep-all;text-align:center}
 .stb:hover{border-color:var(--accent)}
 .stb[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:700}
-.stb[aria-pressed=true]::after{content:"✓";position:absolute;top:2px;right:5px;font-size:10px}
+.stb[aria-pressed=true]::after{content:"✓";position:absolute;top:2px;right:5px;font-size:10px;animation:pop .25s var(--spring)}
+.pk-sel .chip{animation:pop .25s var(--ease)}
 .stb .role{display:block;font-size:10px;font-weight:600;color:var(--faint);margin-top:1px}
 .stb[aria-pressed=true] .role{color:inherit;opacity:.8}
 .pk-foot{padding:10px 16px calc(10px + env(safe-area-inset-bottom));border-top:1px solid var(--line);display:flex;gap:8px;align-items:center}
@@ -198,6 +268,11 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 .btn1{height:44px;padding:0 22px;border-radius:12px;font-size:15px;font-weight:700;background:var(--accent);color:var(--on-accent)}
 .x-btn{width:36px;height:36px;border-radius:99px;display:grid;place-items:center;color:var(--sub);font-size:20px}
 .x-btn:hover{background:var(--soft)}
+
+/* 움직임 줄이기 설정을 켠 사람에게는 애니메이션을 끔 */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after,::backdrop{animation-duration:.01ms!important;animation-delay:0s!important;transition-duration:.01ms!important}
+}
 </style>
 </head>
 <body>
@@ -228,16 +303,22 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
     <section class="card">
       <p class="sec-title">날짜</p>
       <div class="scroller" id="days"></div>
-      <input type="date" id="date-pick" hidden>
+      <div class="cal" id="cal" hidden></div>
     </section>
 
     <section class="card">
       <p class="sec-title">이 시각 이후 출발</p>
       <div class="timebox">
         <button type="button" class="step" data-dt="-30" aria-label="30분 앞으로">−30</button>
-        <div class="tdisp num" id="tdisp"><span id="tval">09:00</span><small>이후</small><input type="time" class="ghost" id="time" aria-label="출발 시각" step="300"></div>
+        <button type="button" class="tdisp num" id="tdisp" aria-expanded="false" aria-controls="tp" aria-label="출발 시각 고르기"><span id="tval">09:00</span><small>이후</small><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
         <button type="button" class="step" data-dt="30" aria-label="30분 뒤로">+30</button>
         <button type="button" class="now" id="now">지금</button>
+      </div>
+      <div class="tp" id="tp" hidden>
+        <div class="tp-lbl"><span>시</span></div>
+        <div class="tp-grid num" id="tp-h"></div>
+        <div class="tp-lbl"><span>분</span><span>분을 누르면 닫혀요</span></div>
+        <div class="tp-grid num" id="tp-m"></div>
       </div>
     </section>
 
@@ -260,7 +341,7 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
           </div>
         </div>
       </div>
-      <p class="hint" id="max-hint"></p>
+      <p class="hint" id="max-hint" hidden></p>
     </section>
 
     <section class="card">
@@ -350,6 +431,47 @@ function nearOf(names) {
 }
 const effective = (role) => (S.near[role] ? [...S[role], ...nearOf(S[role])] : S[role]);
 
+// ---------- 움직임 ----------
+const EASE = 'cubic-bezier(.22,1,.36,1)';
+const calm = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+const isOpen = (el) => el.dataset.open === '1';
+// 접힌 영역을 높이째 부드럽게 펼치거나 접기(도중에 다시 눌러도 그 자리에서 이어짐)
+function slide(el, open) {
+  const from = el.hidden ? 0 : el.getBoundingClientRect().height;
+  el.dataset.open = open ? '1' : '';
+  el._a?.cancel();
+  if (calm()) { el.hidden = !open; return; }
+  el.hidden = false;
+  const to = open ? el.scrollHeight : 0;
+  el.style.overflow = 'hidden';
+  const a = el._a = el.animate(
+    [{ height: `${from}px`, opacity: from ? 1 : 0 }, { height: `${to}px`, opacity: open ? 1 : 0 }],
+    { duration: open ? 380 : 260, easing: EASE });
+  const done = () => { if (el._a !== a) return; el.style.overflow = ''; el._a = null; if (!open) el.hidden = true; };
+  a.onfinish = done;
+  setTimeout(done, (open ? 380 : 260) + 80); // 탭이 숨겨져 애니메이션 시계가 멈춰도 상태는 맞춤
+}
+// 높이가 바뀌는 다시 그리기를 부드럽게
+function morph(el, fn) {
+  const h0 = el.getBoundingClientRect().height; fn();
+  const h1 = el.getBoundingClientRect().height;
+  if (calm() || Math.abs(h1 - h0) < 1) return;
+  el.style.overflow = 'hidden';
+  el.animate([{ height: `${h0}px` }, { height: `${h1}px` }], { duration: 300, easing: EASE }).onfinish = () => { el.style.overflow = ''; };
+}
+// 값이 바뀔 때 살짝 밀려 들어오기
+function bump(el, dir = 1) {
+  if (calm()) return;
+  el.animate([{ transform: `translateY(${dir * 7}px)`, opacity: 0.2 }, { transform: 'none', opacity: 1 }], { duration: 320, easing: EASE });
+}
+// 세그먼트 선택 표시 위치
+function syncSeg(seg) {
+  if (!seg) return;
+  const bs = [...seg.querySelectorAll('button')];
+  seg.style.setProperty('--n', bs.length);
+  seg.style.setProperty('--i', Math.max(0, bs.findIndex((b) => b.getAttribute('aria-pressed') === 'true')));
+}
+
 // ---------- 패널 렌더 ----------
 function renderField(role) {
   const el = $('#c-' + role);
@@ -359,6 +481,7 @@ function renderField(role) {
   const sw = $(`.switch[data-near="${role}"]`);
   sw.setAttribute('aria-checked', S.near[role]);
 }
+let daysSig = '';
 function renderDays() {
   const base = new Date(); base.setHours(0, 0, 0, 0);
   const days = [];
@@ -368,16 +491,41 @@ function renderDays() {
   let html = days.map((d, i) => `<button type="button" class="day ${d.getDay() % 6 === 0 ? 'we' : ''}" data-d="${ymd(d)}" aria-pressed="${ymd(d) === S.date}">
     <b>${label(d, i)}</b><span>${i < 3 ? `${d.getDate()} ` : ''}${WD[d.getDay()]}</span></button>`).join('');
   if (!inList) { const d = new Date(S.date + 'T00:00'); html = `<button type="button" class="day" aria-pressed="true" data-d="${S.date}"><b>${d.getMonth() + 1}/${d.getDate()}</b><span>${WD[d.getDay()]}</span></button>` + html; }
-  html += `<button type="button" class="day more" id="day-more">다른 날 ›</button>`;
-  $('#days').innerHTML = html;
-  $('#days [aria-pressed=true]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  html += `<button type="button" class="day more" id="day-more" aria-controls="cal" aria-expanded="${!$('#cal').hidden}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>달력</button>`;
+  // 칩 구성이 그대로면 다시 그리지 않고 선택만 옮김(색 전환이 보이도록)
+  const sig = ymd(base) + (inList ? '' : S.date);
+  if (sig !== daysSig) { daysSig = sig; $('#days').innerHTML = html; }
+  else $$('#days [data-d]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.d === S.date));
+  $('#day-more').setAttribute('aria-expanded', isOpen($('#cal')));
+  $('#days [aria-pressed=true]')?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: calm() ? 'auto' : 'smooth' });
+  renderCal(); // 달력이 열려 있으면 선택 표시 맞추기
 }
-function renderTime() { $('#tval').textContent = S.time; $('#time').value = S.time; }
+function renderTime() {
+  $('#tval').textContent = S.time;
+  if (!isOpen($('#tp'))) return;
+  const [h, m] = S.time.split(':').map(Number);
+  if (!$('#tp-h').children.length) {
+    // 1~4시는 열차가 거의 없어 흐리게
+    $('#tp-h').innerHTML = Array.from({ length: 24 }, (_, i) => `<button type="button" data-th="${i}" class="${i >= 1 && i <= 4 ? 'dim' : ''}">${pad(i)}</button>`).join('');
+    $('#tp-m').innerHTML = Array.from({ length: 12 }, (_, i) => `<button type="button" data-tm="${i * 5}">${pad(i * 5)}</button>`).join('');
+  }
+  $$('#tp-h button').forEach((b) => b.setAttribute('aria-pressed', +b.dataset.th === h));
+  $$('#tp-m button').forEach((b) => b.setAttribute('aria-pressed', +b.dataset.tm === m));
+}
+function toggleTime(open = !isOpen($('#tp'))) {
+  $('#tp').dataset.open = open ? '1' : '';
+  $('#tdisp').setAttribute('aria-expanded', open);
+  renderTime();
+  slide($('#tp'), open);
+}
 function renderOpts() {
   $$('#max button').forEach((b) => b.setAttribute('aria-pressed', +b.dataset.v === S.max));
+  syncSeg($('#max'));
   $('#min').textContent = `${S.min}분`;
-  $('#max-hint').textContent = S.max === 2 ? '환승 2회는 처음 조회할 때 시간이 더 걸릴 수 있어요.' : S.max === 0 ? '직통 열차만 보여줍니다.' : '';
-  $('#max-hint').hidden = !$('#max-hint').textContent;
+  const hint = $('#max-hint'), text = S.max === 2 ? '환승 2회는 처음 조회할 때 시간이 더 걸릴 수 있어요.' : S.max === 0 ? '직통 열차만 보여줍니다.' : '';
+  if (text) hint.textContent = text;
+  if (!!text !== isOpen(hint)) slide(hint, !!text);
+  else if (text) bump(hint, 1);
 }
 function renderHubs() {
   const h = S.hubs || CFG.hubs;
@@ -395,17 +543,81 @@ document.addEventListener('click', (e) => {
   else if (t.dataset.pick) openPicker(t.dataset.pick);
   else if (t.dataset.near) { S.near[t.dataset.near] = !S.near[t.dataset.near]; save(); renderField(t.dataset.near); }
   else if (t.dataset.d) { S.date = t.dataset.d; renderDays(); }
-  else if (t.id === 'day-more') { const p = $('#date-pick'); p.value = S.date; p.hidden = false; try { p.showPicker(); } catch { p.focus(); } }
-  else if (t.dataset.dt) { const [h, m] = S.time.split(':').map(Number); let v = h * 60 + m + +t.dataset.dt; v = Math.max(0, Math.min(1435, v)); S.time = `${pad(Math.floor(v / 60))}:${pad(v % 60)}`; renderTime(); }
-  else if (t.dataset.dm) { S.min = Math.max(0, Math.min(90, S.min + +t.dataset.dm)); save(); renderOpts(); }
+  else if (t.id === 'day-more') toggleCal();
+  else if (t.dataset.dt) { const [h, m] = S.time.split(':').map(Number); let v = h * 60 + m + +t.dataset.dt; v = Math.max(0, Math.min(1435, v)); const nt = `${pad(Math.floor(v / 60))}:${pad(v % 60)}`; if (nt !== S.time) { S.time = nt; renderTime(); bump($('#tval'), Math.sign(+t.dataset.dt)); } }
+  else if (t.dataset.dm) { const v = Math.max(0, Math.min(90, S.min + +t.dataset.dm)); if (v !== S.min) { S.min = v; save(); renderOpts(); bump($('#min'), Math.sign(+t.dataset.dm)); } }
   else if (t.closest('#max')) { S.max = +t.dataset.v; save(); renderOpts(); }
 });
-$('#date-pick').addEventListener('change', (e) => { if (e.target.value) { S.date = e.target.value; renderDays(); } e.target.hidden = true; });
-$('#date-pick').addEventListener('blur', (e) => { e.target.hidden = true; });
-$('#time').addEventListener('input', (e) => { if (e.target.value) { S.time = e.target.value; $('#tval').textContent = S.time; } });
-$('#tdisp').addEventListener('click', () => { try { $('#time').showPicker(); } catch {} });
-$('#now').addEventListener('click', () => { const d = new Date(); S.date = ymd(d); S.time = `${pad(d.getHours())}:${pad(d.getMinutes())}`; renderDays(); renderTime(); });
-$('#swap').addEventListener('click', () => { [S.from, S.to] = [S.to, S.from]; [S.near.from, S.near.to] = [S.near.to, S.near.from]; save(); renderField('from'); renderField('to'); });
+// ---------- 달력 ----------
+const CAL_DAYS = 90; // 오늘부터 고를 수 있는 날 수
+let calMonth = null; // 보고 있는 달의 1일
+function renderCal() {
+  const cal = $('#cal'); if (!isOpen(cal)) return;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const last = new Date(today); last.setDate(last.getDate() + CAL_DAYS);
+  const y = calMonth.getFullYear(), mo = calMonth.getMonth();
+  const first = new Date(y, mo, 1).getDay(), n = new Date(y, mo + 1, 0).getDate();
+  let cells = WD.map((w, i) => `<span class="wd ${i === 0 ? 'sun' : i === 6 ? 'sat' : ''}">${w}</span>`).join('');
+  cells += '<span></span>'.repeat(first);
+  for (let d = 1; d <= n; d++) {
+    const dt = new Date(y, mo, d), key = ymd(dt), wd = dt.getDay();
+    const off = dt < today || dt > last;
+    cells += `<button type="button" data-cd="${key}" class="${wd === 0 ? 'sun' : wd === 6 ? 'sat' : ''} ${+dt === +today ? 'today' : ''}" aria-pressed="${key === S.date}" ${off ? 'disabled' : ''} aria-label="${mo + 1}월 ${d}일 ${WD[wd]}요일">${d}</button>`;
+  }
+  cal.innerHTML = `<div class="cal-head">
+      <button type="button" class="cal-nav" data-cm="-1" aria-label="이전 달" ${y * 12 + mo <= today.getFullYear() * 12 + today.getMonth() ? 'disabled' : ''}>‹</button>
+      <b class="num">${y}년 ${mo + 1}월</b>
+      <button type="button" class="cal-nav" data-cm="1" aria-label="다음 달" ${y * 12 + mo >= last.getFullYear() * 12 + last.getMonth() ? 'disabled' : ''}>›</button>
+    </div>
+    <div class="cal-grid num">${cells}</div>
+    <p class="cal-foot">오늘부터 ${CAL_DAYS}일 안에서 고를 수 있어요. 시간표가 아직 없는 날은 결과가 비어요.</p>`;
+}
+function toggleCal(open = !isOpen($('#cal'))) {
+  $('#cal').dataset.open = open ? '1' : '';
+  if (open) { const d = new Date(S.date + 'T00:00'); calMonth = new Date(d.getFullYear(), d.getMonth(), 1); }
+  $('#day-more')?.setAttribute('aria-expanded', open);
+  renderCal();
+  slide($('#cal'), open);
+}
+$('#cal').addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b || b.disabled) return;
+  if (b.dataset.cm) {
+    const dir = +b.dataset.cm;
+    calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + dir, 1);
+    morph($('#cal'), renderCal);
+    if (!calm()) {
+      $('#cal .cal-grid').animate([{ transform: `translateX(${dir * 24}px)`, opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 340, easing: EASE });
+      $('#cal .cal-head b').animate([{ transform: `translateX(${dir * 10}px)`, opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 300, easing: EASE });
+    }
+  }
+  else if (b.dataset.cd) { S.date = b.dataset.cd; toggleCal(false); renderDays(); }
+});
+$('#tdisp').addEventListener('click', () => toggleTime());
+$('#tp').addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  const [h, m] = S.time.split(':');
+  if (b.dataset.th) { const nt = `${pad(b.dataset.th)}:${m}`; if (nt !== S.time) { bump($('#tval'), +b.dataset.th > +h ? 1 : -1); S.time = nt; renderTime(); } }
+  else if (b.dataset.tm) { S.time = `${h}:${pad(b.dataset.tm)}`; toggleTime(false); }
+});
+// 바깥을 누르거나 Esc면 닫기
+document.addEventListener('pointerdown', (e) => {
+  if (isOpen($('#tp')) && !e.target.closest('#tp, .timebox')) toggleTime(false);
+  if (isOpen($('#cal')) && !e.target.closest('#cal, #days')) toggleCal(false);
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  if (isOpen($('#tp'))) toggleTime(false);
+  if (isOpen($('#cal'))) toggleCal(false);
+});
+$('#now').addEventListener('click', () => { const d = new Date(), nt = `${pad(d.getHours())}:${pad(d.getMinutes())}`; S.date = ymd(d); if (nt !== S.time) { S.time = nt; bump($('#tval'), 1); } renderDays(); renderTime(); });
+let swapTurn = 0;
+$('#swap').addEventListener('click', () => {
+  [S.from, S.to] = [S.to, S.from]; [S.near.from, S.near.to] = [S.near.to, S.near.from]; save();
+  $('#swap svg').style.transform = `rotate(${++swapTurn * 180}deg)`;
+  // 두 줄의 역이 서로 자리를 바꾸는 느낌으로
+  if (!calm()) [['#c-from', -1], ['#c-to', 1]].forEach(([s, d]) => $(s).animate([{ transform: `translateY(${d * 14}px)`, opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 380, easing: EASE }));
+  renderField('from'); renderField('to');
+});
 $('#hub-edit').addEventListener('click', () => openPicker('hubs'));
 $('#hub-reset').addEventListener('click', () => { S.hubs = null; save(); renderHubs(); });
 $('#back').addEventListener('click', () => $('#panel').scrollIntoView({ behavior: 'smooth' }));
@@ -461,7 +673,7 @@ function renderPkSel() {
   $$('#pk-body .stb').forEach((b) => b.setAttribute('aria-pressed', pkSel.has(b.dataset.st)));
 }
 pk.addEventListener('click', (e) => {
-  if (e.target === pk) return pk.close();        // 바깥(backdrop) 클릭
+  if (e.target === pk) return closePk();        // 바깥(backdrop) 클릭
   const t = e.target.closest('button'); if (!t) return;
   if (t.dataset.st) { pkSel.has(t.dataset.st) ? pkSel.delete(t.dataset.st) : pkSel.add(t.dataset.st); renderPkSel(); }
   else if (t.dataset.unsel) { pkSel.delete(t.dataset.unsel); renderPkSel(); }
@@ -476,13 +688,21 @@ $('#pk-body').addEventListener('scroll', () => {
 $('#pk-q').addEventListener('input', (e) => { $('#pk-sw').classList.toggle('has', !!e.target.value); renderPicker(); });
 $('#pk-q').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } });
 $('#pk-clr').addEventListener('click', () => { $('#pk-q').value = ''; $('#pk-sw').classList.remove('has'); renderPicker(); });
-$('#pk-x').addEventListener('click', () => pk.close());
+// 닫힐 때도 내려가며 사라지게(바로 close()하면 애니메이션 없이 사라짐)
+function closePk() {
+  if (!pk.open || pk.classList.contains('closing')) return;
+  if (calm()) return pk.close();
+  pk.classList.add('closing');
+  setTimeout(() => { pk.classList.remove('closing'); pk.close(); }, 250);
+}
+pk.addEventListener('cancel', (e) => { e.preventDefault(); closePk(); }); // Esc
+$('#pk-x').addEventListener('click', closePk);
 $('#pk-clear').addEventListener('click', () => { pkSel.clear(); renderPkSel(); });
 $('#pk-ok').addEventListener('click', () => {
   const arr = [...pkSel];
   if (pkRole === 'hubs') S.hubs = arr;
   else S[pkRole] = arr;
-  save(); pk.close();
+  save(); closePk();
   pkRole === 'hubs' ? renderHubs() : renderField(pkRole);
 });
 
@@ -509,16 +729,22 @@ $('#go').addEventListener('click', async () => {
   } finally { $('#go').disabled = false; $('#go').textContent = '경로 찾기'; }
 });
 
-$('#rhead').addEventListener('click', (e) => { const b = e.target.closest('[data-f]'); if (b) { filter = b.dataset.f; render(); } });
+$('#rhead').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-f]'); if (!b || b.dataset.f === filter) return;
+  filter = b.dataset.f;
+  $$('#rhead [data-f]').forEach((x) => x.setAttribute('aria-pressed', x === b));
+  syncSeg($('#rhead .seg'));
+  render(true); // 머리는 그대로 두어 선택 표시가 미끄러지게
+});
 
-function render() {
+function render(keepHead = false) {
   const d = lastData;
   const dt = new Date(`${d.date.slice(0, 4)}-${d.date.slice(4, 6)}-${d.date.slice(6, 8)}T00:00`);
   const all = d.journeys;
   const nDirect = all.filter((j) => !j.transfers).length;
   const list = filter === 'direct' ? all.filter((j) => !j.transfers) : filter === 'xfer' ? all.filter((j) => j.transfers) : all;
   $('#back').hidden = false;
-  $('#rhead').innerHTML = `<div class="rhead">
+  if (!keepHead) $('#rhead').innerHTML = `<div class="rhead">
     <div><div class="rtitle">${esc(d.from.join('·'))} → ${esc(d.to.join('·'))}</div>
     <div class="rmeta num">${dt.getMonth() + 1}월 ${dt.getDate()}일(${WD[dt.getDay()]}) ${esc(S.time)} 이후 · ${all.length}개 경로 · ${(d.elapsedMs / 1000).toFixed(1)}초</div></div>
     ${all.length ? `<div class="seg" role="group" aria-label="결과 필터">
@@ -526,12 +752,13 @@ function render() {
       <button type="button" data-f="direct" aria-pressed="${filter === 'direct'}">직통 ${nDirect}</button>
       <button type="button" data-f="xfer" aria-pressed="${filter === 'xfer'}">환승 ${all.length - nDirect}</button></div>` : ''}
   </div>`;
+  syncSeg($('#rhead .seg'));
   status(d.missing.length ? `목록에 없는 역은 빼고 검색했어요: ${d.missing.join(', ')}` : '');
   if (!list.length) { $('#out').innerHTML = `<div class="empty"><b>조건에 맞는 경로가 없어요</b>시각을 앞당기거나 환승 횟수·후보역을 늘려보세요.</div>`; return; }
 
   const fastest = Math.min(...all.map((j) => j.arr));
   const directs = all.filter((j) => !j.transfers);
-  $('#out').innerHTML = list.map((j) => {
+  $('#out').innerHTML = list.map((j, idx) => {
     // 같은 시각 이후 출발하는 직통 중 가장 빠른 것과 비교
     let gain = '';
     if (j.transfers) {
@@ -552,7 +779,7 @@ function render() {
         </div></div>`;
     }).join('');
     const best = j.arr === fastest;
-    return `<article class="j ${best ? 'best' : ''}">
+    return `<article class="j ${best ? 'best' : ''}" style="--k:${Math.min(idx, 10)}">
       <div class="jhead"><span class="time num">${hm(j.dep)}<i>→</i>${hm(j.arr)}</span><span class="dur num">${dur(j.duration)}</span></div>
       <div class="tags">${best ? '<span class="tag b">가장 일찍 도착</span>' : ''}<span class="tag">${j.transfers ? `환승 ${j.transfers}회` : '직통'}</span>${gain}${j.fare ? `<span class="tag fare num">${j.fare.toLocaleString()}원${n > 1 ? ' (합계)' : ''}</span>` : ''}</div>
       <div class="tl">${tl}</div>
