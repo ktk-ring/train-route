@@ -207,6 +207,9 @@ h1 small{display:block;font-size:14px;font-weight:500;color:var(--sub);letter-sp
 .xfer{display:grid;grid-template-columns:14px 1fr;gap:0 10px;font-size:12px;color:var(--sub);padding:4px 0}
 .xfer .rail::before{background:repeating-linear-gradient(var(--faint) 0 3px,transparent 3px 6px);width:2px;top:0;bottom:0}
 .xfer.tight{color:var(--warn)}
+/* 연계 링크(도보·전철): 점선 레일 */
+.leg.lk .rail::before{background:repeating-linear-gradient(var(--c) 0 4px,transparent 4px 7px)}
+.stop .late{font-size:11px;font-weight:600;color:var(--sub);background:var(--soft);border-radius:5px;padding:0 5px;margin-left:6px}
 
 .sk{height:150px;border-radius:var(--r);background:linear-gradient(90deg,var(--card) 0%,var(--soft) 50%,var(--card) 100%);background-size:200% 100%;animation:sh 1.2s infinite linear;border:1px solid var(--line)}
 @keyframes sh{to{background-position:-200% 0}}
@@ -770,7 +773,8 @@ function render(keepHead = false) {
       <button type="button" data-f="xfer" aria-pressed="${filter === 'xfer'}">환승 ${all.length - nDirect}</button></div>` : ''}
   </div>`;
   syncSeg($('#rhead .seg'));
-  status(d.missing.length ? `목록에 없는 역은 빼고 검색했어요: ${d.missing.join(', ')}` : '');
+  const notes = [d.warning, d.missing.length ? `목록에 없는 역은 빼고 검색했어요: ${d.missing.join(', ')}` : ''].filter(Boolean);
+  status(notes.join(' '), !!d.warning);
   if (!list.length) { $('#out').innerHTML = `<div class="empty"><b>조건에 맞는 경로가 없어요</b>시각을 앞당기거나 환승 횟수·후보역을 늘려보세요.</div>`; return; }
 
   const fastest = Math.min(...all.map((j) => j.arr));
@@ -783,22 +787,29 @@ function render(keepHead = false) {
       if (later.length) { const a = Math.min(...later.map((x) => x.arr)); if (a > j.arr) gain = `<span class="tag g">직통보다 ${dur(a - j.arr)} 일찍</span>`; }
       else if (directs.length) gain = '<span class="tag g">이후 직통 없음</span>';
     }
-    const n = j.legs.length;
+    const n = j.legs.length, lk = j.legs.filter((l) => l.link);
     const tl = j.legs.map((l, i) => {
-      const c = color(l.grade);
-      const xfer = i ? `<div class="xfer ${l.wait < S.min + 5 ? 'tight' : ''}"><div class="rail"></div><div>${esc(l.depName)}에서 갈아타기 · <b class="num">${l.wait}분</b> 대기${l.wait < S.min + 5 ? ' (빠듯)' : ''}</div></div>` : '';
-      return `${xfer}<div class="leg" style="--c:${c}">
+      const c = l.link ? 'var(--sub)' : color(l.grade);
+      // 연계 링크(도보·전철)는 시간표가 없어 대기를 최대로 잡는다 → 도착은 "늦어도"
+      const tight = !l.link && l.wait < S.min + 5;
+      const xfer = !i ? '' : l.link
+        ? `<div class="xfer"><div class="rail"></div><div>${esc(l.depName)}에서 ${esc(l.grade)}(으)로 이동</div></div>`
+        : `<div class="xfer ${tight ? 'tight' : ''}"><div class="rail"></div><div>${esc(l.depName)}에서 갈아타기 · <b class="num">${l.wait}분</b>${j.legs[i - 1].link ? ' 이상' : ''} 대기${tight ? ' (빠듯)' : ''}</div></div>`;
+      const ride = l.link
+        ? `<span class="badge">${esc(l.grade)}</span>${l.grade === '도보' ? '' : '탑승 '}약 ${l.ride}분${l.headway ? ` + 대기 최대 ${l.headway}분` : ''}`
+        : `<span class="badge">${esc(l.grade)}</span><span class="num">${esc(l.no.replace(/^0+/, ''))}</span> · ${dur(l.arr - l.dep)}`;
+      return `${xfer}<div class="leg${l.link ? ' lk' : ''}" style="--c:${c}">
         <div class="rail"><span class="dot"></span><span class="dot end"></span></div>
         <div class="lbody">
           <div class="stop num"><b>${hm(l.dep)}</b>${esc(l.depName)}</div>
-          <div class="train"><span class="badge">${esc(l.grade)}</span><span class="num">${esc(l.no.replace(/^0+/, ''))}</span> · ${dur(l.arr - l.dep)}</div>
-          <div class="stop num"><b>${hm(l.arr)}</b>${esc(l.arrName)}</div>
+          <div class="train">${ride}</div>
+          <div class="stop num"><b>${hm(l.arr)}</b>${esc(l.arrName)}${l.link && l.headway ? '<small class="late">늦어도</small>' : ''}</div>
         </div></div>`;
     }).join('');
     const best = j.arr === fastest;
     return `<article class="j ${best ? 'best' : ''}" style="--k:${Math.min(idx, 10)}">
       <div class="jhead"><span class="time num">${hm(j.dep)}<i>→</i>${hm(j.arr)}</span><span class="dur num">${dur(j.duration)}</span></div>
-      <div class="tags">${best ? '<span class="tag b">가장 일찍 도착</span>' : ''}<span class="tag">${j.transfers ? `환승 ${j.transfers}회` : '직통'}</span>${gain}${j.fare ? `<span class="tag fare num">${j.fare.toLocaleString()}원${n > 1 ? ' (합계)' : ''}</span>` : ''}</div>
+      <div class="tags">${best ? '<span class="tag b">가장 일찍 도착</span>' : ''}<span class="tag">${j.transfers ? `환승 ${j.transfers}회` : '직통'}</span>${lk.length ? `<span class="tag">${esc([...new Set(lk.map((l) => l.grade))].join('·'))} 연계</span>` : ''}${gain}${j.fare ? `<span class="tag fare num">${j.fare.toLocaleString()}원${lk.length ? ' (열차만)' : n > 1 ? ' (합계)' : ''}</span>` : ''}</div>
       <div class="tl">${tl}</div>
     </article>`;
   }).join('');
