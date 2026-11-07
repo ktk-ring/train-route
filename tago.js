@@ -3,7 +3,8 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-const BASE = 'https://apis.data.go.kr/1613000/TrainInfoService';
+// 2026년 기준 경로. 예전 경로(TrainInfoService/getXxx)는 "서비스 없음(12)" 오류를 낸다.
+const BASE = 'https://apis.data.go.kr/1613000/TrainInfo';
 
 export function createTago({ key, cacheDir, concurrency = 6 }) {
   if (!key) throw new Error('TAGO_KEY가 비어 있습니다. .env 파일에 인증키를 넣어주세요.');
@@ -33,16 +34,20 @@ export function createTago({ key, cacheDir, concurrency = 6 }) {
     const text = await res.text();
     let data;
     try { data = JSON.parse(text); } catch {
-      // 인증키 오류 등은 XML로 옴
+      // 인증키 오류 등은 XML로 올 수 있음
       const msg = text.match(/<returnAuthMsg>([^<]+)/)?.[1] || text.slice(0, 200);
       throw new Error(`TAGO 응답 오류(${res.status}): ${msg}`);
     }
+    // 게이트웨이 오류(서비스 없음, 키 미등록 등)는 JSON으로도 옴
+    const gw = data?.OpenAPI_ServiceResponse?.cmmMsgHeader;
+    if (gw) throw new Error(`TAGO 응답 오류(${res.status}): ${gw.returnAuthMsg || gw.errMsg} [${gw.returnReasonCode}]`);
     const header = data?.response?.header;
     if (!header || String(header.resultCode) !== '00')
       throw new Error(`TAGO 오류: ${header?.resultMsg || text.slice(0, 200)}`);
     const body = data.response.body || {};
+    // 결과 없음: items가 {item: []} 또는 "" 로 옴
     let items = body.items?.item ?? [];
-    if (!Array.isArray(items)) items = [items];
+    if (!Array.isArray(items)) items = items ? [items] : [];
     return { items, total: Number(body.totalCount ?? items.length) };
   }
 
@@ -50,6 +55,8 @@ export function createTago({ key, cacheDir, concurrency = 6 }) {
     const rows = 500;
     const first = await call(op, { ...params, numOfRows: rows, pageNo: 1 });
     const out = [...first.items];
+    // 현재 API는 numOfRows/pageNo를 무시하고 전체를 한 번에 준다. 다음 페이지를 부르면 같은 목록이 중복되므로 여기서 끝낸다.
+    if (out.length >= first.total) return out;
     const pages = Math.ceil(first.total / rows);
     for (let p = 2; p <= pages; p++) out.push(...(await call(op, { ...params, numOfRows: rows, pageNo: p })).items);
     return out;
@@ -75,15 +82,19 @@ export function createTago({ key, cacheDir, concurrency = 6 }) {
     return p;
   }
 
-  /** 전국 기차역 목록 [{id, name}] (30일 캐시) */
+  /** 전국 기차역 목록 [{id, name, city, cityCode}] (30일 캐시) */
   function stations() {
-    return cached('stations.json', 30 * 864e5, async () => {
-      const cities = await callAll('getCtyCodeList');
+    return cached('stations-v2.json', 30 * 864e5, async () => {
+      const cities = await callAll('GetCtyCodeList');
       const all = await Promise.all(
-        cities.map((c) => callAll('getCtyAcctoTrainSttnList', { cityCode: c.citycode }).catch(() => []))
+        cities.map(async (c) => {
+          const list = await callAll('GetCtyAcctoTrainSttnList', { cityCode: c.citycode }).catch(() => []);
+          return list.map((s) => ({ ...s, city: String(c.cityname), cityCode: String(c.citycode) }));
+        })
       );
       const map = new Map();
-      for (const s of all.flat()) map.set(s.nodeid, { id: s.nodeid, name: String(s.nodename) });
+      for (const s of all.flat())
+        map.set(s.nodeid, { id: s.nodeid, name: String(s.nodename), city: s.city, cityCode: s.cityCode });
       return [...map.values()].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
     });
   }
@@ -91,7 +102,7 @@ export function createTago({ key, cacheDir, concurrency = 6 }) {
   /** 특정 날짜 dep→arr 열차 목록 (6시간 캐시) */
   function trains(depId, arrId, date) {
     return cached(`trains/${date}/${depId}_${arrId}.json`, 6 * 36e5, async () => {
-      const items = await callAll('getStrtpntAlocFndTrainInfo', {
+      const items = await callAll('GetStrtpntAlocFndTrainInfo', {
         depPlaceId: depId, arrPlaceId: arrId, depPlandTime: date,
       });
       return items.map((t) => ({
