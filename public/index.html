@@ -40,7 +40,7 @@ h1 small{display:block;font-size:14px;font-weight:500;color:var(--sub);letter-sp
 @media (min-width:960px){h1{font-size:30px;margin:2px 2px 14px}}
 @media (min-width:960px){
   .layout{display:grid;grid-template-columns:400px minmax(0,1fr);gap:28px;padding:24px 28px}
-  .panel{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);overflow:auto;padding:2px 4px 2px 2px;scrollbar-width:thin}
+  .panel{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);overflow-y:auto;overflow-x:hidden;scrollbar-gutter:stable;padding:2px 2px 2px 2px;scrollbar-width:thin}
   .results{margin-top:0;padding-top:87px}
   .go-wrap{position:sticky;bottom:0}
   #back{display:none!important}
@@ -83,13 +83,18 @@ h1 small{display:block;font-size:14px;font-weight:500;color:var(--sub);letter-sp
 /* 날짜 칩 */
 .scroller{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 -14px;padding:0 14px;scroll-padding:0 14px}
 .scroller::-webkit-scrollbar{display:none}
-.day{flex:none;min-width:58px;padding:7px 8px;border-radius:12px;background:var(--soft);text-align:center;line-height:1.25}
+.days{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.day{min-width:0;padding:7px 4px;border-radius:12px;background:var(--soft);text-align:center;line-height:1.25}
 .day b{display:block;font-size:12px;font-weight:600;color:var(--sub)}
 .day span{font-size:15px;font-weight:700}
 .day.we span{color:var(--warn)}
 .day[aria-pressed=true]{background:var(--accent);color:var(--on-accent)}
 .day[aria-pressed=true] b,.day[aria-pressed=true] span{color:inherit}
-.day.more{display:grid;place-items:center;gap:2px;font-size:12px;font-weight:600;color:var(--sub);border:1px dashed var(--faint);background:none}
+.day.more{border:1px dashed var(--faint);background:none}
+.day.more span{display:inline-flex;align-items:center;gap:4px}
+.day.more:not([aria-pressed=true]) span{font-size:14px;color:var(--sub)}
+.day.more[aria-pressed=true]{border-style:solid;border-color:var(--accent)}
+.day.more[aria-pressed=true] svg{color:inherit}
 .day.more svg{color:var(--faint)}
 .day.more[aria-expanded=true]{border-style:solid;border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
 .day.more[aria-expanded=true] svg{color:var(--accent)}
@@ -210,6 +215,7 @@ h1 small{display:block;font-size:14px;font-weight:500;color:var(--sub);letter-sp
 
 /* ---------- 움직임 ---------- */
 @keyframes rise{from{opacity:0;transform:translateY(10px)}}
+@keyframes drop{from{opacity:0;transform:translateY(-8px)}}
 @keyframes fade{from{opacity:0}}
 @keyframes fadeout{to{opacity:0}}
 @keyframes pop{from{opacity:0;transform:scale(.8)}}
@@ -218,7 +224,7 @@ h1 small{display:block;font-size:14px;font-weight:500;color:var(--sub);letter-sp
 @keyframes sheetin{from{transform:translateY(100%)}}
 @keyframes sheetout{to{transform:translateY(100%)}}
 /* 처음 열 때 패널이 위에서부터 차례로 */
-.panel > *{animation:rise .6s var(--ease) both}
+.panel > *{animation:drop .6s var(--ease) both}
 .panel > :nth-child(2){animation-delay:.04s}.panel > :nth-child(3){animation-delay:.08s}.panel > :nth-child(4){animation-delay:.12s}
 .panel > :nth-child(5){animation-delay:.16s}.panel > :nth-child(6){animation-delay:.2s}.panel > :nth-child(7){animation-delay:.24s}
 .results > *{animation:fade .6s var(--ease) .2s both}
@@ -246,6 +252,8 @@ dialog.closing::backdrop{animation:fadeout .22s var(--ease) forwards}
 .pk-search .clr{position:absolute;right:6px;top:6px;width:30px;height:30px;border-radius:99px;color:var(--sub);display:none}
 .pk-search.has .clr{display:block}
 .cats{margin:0 -16px;padding:0 16px}
+/* 마우스로 쓰는 넓은 화면은 가로 스크롤 대신 줄바꿈 */
+@media (min-width:641px){.cats{flex-wrap:wrap;overflow:visible;margin:0;padding:0}}
 .cat{flex:none;height:32px;padding:0 12px;border-radius:99px;background:var(--soft);font-size:13px;font-weight:600;color:var(--sub)}
 .cat[aria-current=true]{background:var(--ink);color:var(--bg)}
 .pk-sel{display:flex;gap:6px;flex-wrap:wrap;align-items:center;min-height:34px}
@@ -302,7 +310,7 @@ dialog.closing::backdrop{animation:fadeout .22s var(--ease) forwards}
 
     <section class="card">
       <p class="sec-title">날짜</p>
-      <div class="scroller" id="days"></div>
+      <div class="days" id="days"></div>
       <div class="cal" id="cal" hidden></div>
     </section>
 
@@ -484,20 +492,23 @@ function renderField(role) {
 let daysSig = '';
 function renderDays() {
   const base = new Date(); base.setHours(0, 0, 0, 0);
-  const days = [];
-  for (let i = 0; i < 14; i++) { const d = new Date(base); d.setDate(d.getDate() + i); days.push(d); }
-  const inList = days.some((d) => ymd(d) === S.date);
-  const label = (d, i) => i === 0 ? '오늘' : i === 1 ? '내일' : i === 2 ? '모레' : `${d.getMonth() + 1}/${d.getDate()}`;
-  let html = days.map((d, i) => `<button type="button" class="day ${d.getDay() % 6 === 0 ? 'we' : ''}" data-d="${ymd(d)}" aria-pressed="${ymd(d) === S.date}">
-    <b>${label(d, i)}</b><span>${i < 3 ? `${d.getDate()} ` : ''}${WD[d.getDay()]}</span></button>`).join('');
-  if (!inList) { const d = new Date(S.date + 'T00:00'); html = `<button type="button" class="day" aria-pressed="true" data-d="${S.date}"><b>${d.getMonth() + 1}/${d.getDate()}</b><span>${WD[d.getDay()]}</span></button>` + html; }
-  html += `<button type="button" class="day more" id="day-more" aria-controls="cal" aria-expanded="${!$('#cal').hidden}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>달력</button>`;
-  // 칩 구성이 그대로면 다시 그리지 않고 선택만 옮김(색 전환이 보이도록)
-  const sig = ymd(base) + (inList ? '' : S.date);
-  if (sig !== daysSig) { daysSig = sig; $('#days').innerHTML = html; }
-  else $$('#days [data-d]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.d === S.date));
-  $('#day-more').setAttribute('aria-expanded', isOpen($('#cal')));
-  $('#days [aria-pressed=true]')?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: calm() ? 'auto' : 'smooth' });
+  // 오늘·내일·모레 + 달력(그 밖의 날을 고르면 달력 칸에 그 날짜가 표시됨). 가로 스크롤 없음
+  const days = [0, 1, 2].map((i) => { const d = new Date(base); d.setDate(d.getDate() + i); return d; });
+  const quick = days.some((d) => ymd(d) === S.date);
+  if (ymd(base) !== daysSig) {
+    daysSig = ymd(base);
+    $('#days').innerHTML = days.map((d, i) => `<button type="button" class="day ${d.getDay() % 6 === 0 ? 'we' : ''}" data-d="${ymd(d)}">
+      <b>${['오늘', '내일', '모레'][i]}</b><span>${d.getDate()} ${WD[d.getDay()]}</span></button>`).join('')
+      + '<button type="button" class="day more" id="day-more" aria-controls="cal" aria-label="달력에서 날짜 고르기"></button>';
+  }
+  // 칩은 다시 그리지 않고 선택만 옮김(색 전환이 보이도록)
+  $$('#days [data-d]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.d === S.date));
+  const icon = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>';
+  const more = $('#day-more'), sd = new Date(S.date + 'T00:00');
+  more.classList.toggle('we', !quick && sd.getDay() % 6 === 0);
+  more.setAttribute('aria-pressed', !quick);
+  more.setAttribute('aria-expanded', isOpen($('#cal')));
+  more.innerHTML = quick ? `<b>다른 날</b><span>${icon}달력</span>` : `<b>${sd.getMonth() + 1}/${sd.getDate()}</b><span>${WD[sd.getDay()]} ${icon}</span>`;
   renderCal(); // 달력이 열려 있으면 선택 표시 맞추기
 }
 function renderTime() {
@@ -683,7 +694,13 @@ $('#pk-body').addEventListener('scroll', () => {
   const body = $('#pk-body'); let cur = null;
   for (const g of body.querySelectorAll('.grp')) if (g.offsetTop - body.offsetTop - 30 <= body.scrollTop) cur = g.id.slice(2);
   cur ??= body.querySelector('.grp')?.id.slice(2);
-  $$('#pk-cats .cat').forEach((c) => { const on = c.dataset.cat === cur; if (on && c.getAttribute('aria-current') !== 'true') c.scrollIntoView({ block: 'nearest', inline: 'nearest' }); c.setAttribute('aria-current', on); });
+  const cats = $('#pk-cats');
+  $$('#pk-cats .cat').forEach((c) => {
+    const on = c.dataset.cat === cur;
+    // 가로 스크롤일 때(모바일)만 현재 탭을 따라감
+    if (on && c.getAttribute('aria-current') !== 'true' && cats.scrollWidth > cats.clientWidth) cats.scrollTo({ left: c.offsetLeft - cats.offsetLeft - 16, behavior: 'smooth' });
+    c.setAttribute('aria-current', on);
+  });
 }, { passive: true });
 $('#pk-q').addEventListener('input', (e) => { $('#pk-sw').classList.toggle('has', !!e.target.value); renderPicker(); });
 $('#pk-q').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } });
