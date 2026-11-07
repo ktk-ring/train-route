@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>환승 열차 탐색</title>
+<style>
+:root{
+  --bg:#f4f2ee;--card:#fff;--ink:#1b1b1a;--sub:#6b6862;--line:#e3dfd8;
+  --accent:#1f5eff;--ktx:#1f5eff;--itx:#0f9d76;--mgh:#d9822b;--srt:#7b3fe4;--warn:#c2410c;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#121212;--card:#1c1c1b;--ink:#f1efea;--sub:#9b978f;--line:#2e2d2b;--accent:#6c95ff;
+  --ktx:#6c95ff;--itx:#34c79c;--mgh:#f0a35a;--srt:#a985f5;--warn:#fb923c;
+}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Pretendard",-apple-system,system-ui,sans-serif}
+main{max-width:720px;margin:0 auto;padding:20px 16px 60px}
+h1{font-size:20px;margin:4px 0 16px;letter-spacing:-.02em}
+form{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;display:grid;gap:12px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+label{display:grid;gap:4px;font-size:12px;color:var(--sub)}
+input,select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:9px 10px;width:100%}
+details summary{cursor:pointer;font-size:13px;color:var(--sub)}
+details[open] summary{margin-bottom:10px}
+button{font:inherit;font-weight:600;background:var(--accent);color:#fff;border:0;border-radius:10px;padding:12px;cursor:pointer}
+button:disabled{opacity:.5;cursor:wait}
+.hint{font-size:12px;color:var(--sub);margin:0}
+#status{margin:16px 2px;font-size:13px;color:var(--sub)}
+#status.err{color:var(--warn)}
+.j{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:10px}
+.j.best{border-color:var(--accent)}
+.head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.time{font-size:20px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.meta{font-size:13px;color:var(--sub)}
+.tag{font-size:11px;font-weight:600;padding:2px 7px;border-radius:99px;background:var(--bg);color:var(--sub)}
+.tag.b{background:var(--accent);color:#fff}
+.legs{margin-top:10px;display:grid;gap:6px}
+.leg{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center;font-size:14px}
+.badge{font-size:11px;font-weight:700;color:#fff;border-radius:6px;padding:3px 6px;min-width:58px;text-align:center}
+.st{font-variant-numeric:tabular-nums}
+.wait{font-size:12px;color:var(--sub);padding-left:78px}
+.wait.tight{color:var(--warn)}
+</style>
+</head>
+<body>
+<main>
+  <h1>환승 열차 탐색</h1>
+  <form id="f">
+    <div class="row">
+      <label>출발역<input name="from" list="stations" value="진주" required></label>
+      <label>도착역 (쉼표로 여러 개)<input name="to" list="stations" value="천안, 천안아산" required></label>
+    </div>
+    <div class="row">
+      <label>날짜<input name="date" type="date" required></label>
+      <label>이후 출발<input name="time" type="time" value="09:00" required></label>
+    </div>
+    <div class="row">
+      <label>최대 환승
+        <select name="max">
+          <option value="0">직통만</option>
+          <option value="1" selected>1회</option>
+          <option value="2">2회 (첫 조회 느림)</option>
+        </select>
+      </label>
+      <label>최소 환승 여유(분)<input name="min" type="number" min="0" max="120" value="10"></label>
+    </div>
+    <details>
+      <summary>환승 후보역 편집</summary>
+      <label>쉼표로 구분<input name="hubs"></label>
+    </details>
+    <button id="go">경로 찾기</button>
+    <p class="hint">구간 시간표는 날짜별로 캐시되어 같은 날 두 번째 조회부터는 빠릅니다.</p>
+  </form>
+  <datalist id="stations"></datalist>
+  <div id="status"></div>
+  <div id="out"></div>
+</main>
+<script>
+const $ = (s) => document.querySelector(s);
+const f = $('#f');
+const pad = (n) => String(n).padStart(2, '0');
+const hm = (m) => {
+  const d = Math.floor(m / 1440), r = m % 1440;
+  return `${pad(Math.floor(r / 60))}:${pad(r % 60)}${d ? ` (+${d})` : ''}`;
+};
+const dur = (m) => (m >= 60 ? `${Math.floor(m / 60)}시간 ` : '') + `${m % 60}분`;
+const color = (g) =>
+  /SRT/.test(g) ? 'var(--srt)' : /KTX/.test(g) ? 'var(--ktx)' : /ITX|새마을/.test(g) ? 'var(--itx)' : 'var(--mgh)';
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+const now = new Date();
+f.date.value = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+f.time.value = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+try {
+  const saved = JSON.parse(localStorage.getItem('rr-form') || '{}');
+  for (const k of ['from', 'to', 'max', 'min', 'hubs']) if (saved[k] != null) f[k].value = saved[k];
+} catch {}
+
+fetch('/api/config').then((r) => r.json()).then((c) => { if (!f.hubs.value) f.hubs.value = c.hubs.join(', '); });
+fetch('/api/stations').then((r) => r.json()).then((list) => {
+  if (Array.isArray(list)) $('#stations').innerHTML = list.map((s) => `<option value="${esc(s.name)}">`).join('');
+}).catch(() => {});
+
+f.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const v = Object.fromEntries(new FormData(f));
+  try { localStorage.setItem('rr-form', JSON.stringify(v)); } catch {}
+  const q = new URLSearchParams({
+    from: v.from, to: v.to, date: v.date.replaceAll('-', ''), time: v.time, max: v.max, min: v.min, hubs: v.hubs,
+  });
+  $('#go').disabled = true;
+  $('#status').className = '';
+  $('#status').textContent = v.max === '2' ? '시간표 조회 중… (환승 2회는 처음에 1분 가까이 걸릴 수 있어요)' : '시간표 조회 중…';
+  $('#out').innerHTML = '';
+  try {
+    const r = await fetch('/api/route?' + q);
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || r.statusText);
+    render(d);
+  } catch (err) {
+    $('#status').className = 'err';
+    $('#status').textContent = err instanceof TypeError
+      ? '서버에 연결하지 못했습니다. 터미널에서 node server.js가 실행 중인지 확인하고, http://localhost:8787 (또는 서버 주소)로 접속하세요.'
+      : err.message;
+  } finally {
+    $('#go').disabled = false;
+  }
+});
+
+function render(d) {
+  const minT = Number(f.min.value);
+  const miss = d.missing.length ? ` · 못 찾은 역: ${d.missing.join(', ')}` : '';
+  $('#status').textContent = `${d.from.join('/')} → ${d.to.join('/')} · ${d.journeys.length}개 경로 · ${(d.elapsedMs / 1000).toFixed(1)}초${miss}`;
+  if (!d.journeys.length) { $('#out').innerHTML = '<p class="hint">조건에 맞는 경로가 없습니다.</p>'; return; }
+  const fastest = Math.min(...d.journeys.map((j) => j.arr));
+  $('#out').innerHTML = d.journeys.map((j) => {
+    const best = j.arr === fastest;
+    const legs = j.legs.map((l, i) => `
+      ${i ? `<div class="wait ${l.wait < minT + 5 ? 'tight' : ''}">${esc(l.depName)}에서 환승 · ${l.wait}분 대기</div>` : ''}
+      <div class="leg">
+        <span class="badge" style="background:${color(l.grade)}">${esc(l.grade)} ${esc(l.no)}</span>
+        <span class="st">${hm(l.dep)} ${esc(l.depName)} → ${hm(l.arr)} ${esc(l.arrName)}</span>
+      </div>`).join('');
+    return `<article class="j ${best ? 'best' : ''}">
+      <div class="head">
+        <span class="time">${hm(j.dep)} → ${hm(j.arr)}</span>
+        ${best ? '<span class="tag b">가장 빠름</span>' : ''}
+        <span class="tag">${j.transfers ? `환승 ${j.transfers}회` : '직통'}</span>
+      </div>
+      <div class="meta">${dur(j.duration)} · ${j.fare.toLocaleString()}원</div>
+      <div class="legs">${legs}</div>
+    </article>`;
+  }).join('');
+}
+</script>
+</body>
+</html>
