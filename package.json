@@ -5,7 +5,7 @@
   "type": "module",
   "description": "KTX·일반열차 환승 최적 경로 탐색기 (TAGO 열차정보 API)",
   "scripts": {
-    "start": "node server.js",
+    "local": "node local-server.js",
     "stations": "node scripts/update-stations.js"
   },
   "engines": { "node": "22.x" }

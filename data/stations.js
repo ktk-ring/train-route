@@ -1,4 +1,6 @@
-[{"id":"NAT280090","name":"가남","city":"경기도","cityCode":"31"},
+// 역 목록 스냅샷 — npm run stations 로 다시 만든다. 직접 고치지 말 것.
+export default [
+{"id":"NAT280090","name":"가남","city":"경기도","cityCode":"31"},
 {"id":"NAT140576","name":"가평","city":"경기도","cityCode":"31"},
 {"id":"NAT012054","name":"각계","city":"충청북도","cityCode":"33"},
 {"id":"NAT280212","name":"감곡장호원","city":"충청북도","cityCode":"33"},
@@ -346,4 +348,5 @@
 {"id":"NAT882904","name":"효천","city":"광주광역시","cityCode":"24"},
 {"id":"NAT752196","name":"후포","city":"경상북도","cityCode":"37"},
 {"id":"NAT030173","name":"흑석리","city":"대전광역시","cityCode":"25"},
-{"id":"NAT752682","name":"흥부","city":"경상북도","cityCode":"37"}]
+{"id":"NAT752682","name":"흥부","city":"경상북도","cityCode":"37"}
+];

@@ -10,17 +10,17 @@
 
 ## 실행 (Node 22+, 설치할 패키지 없음)
 ```
-node server.js
+npm run local
 ```
 → http://localhost:8787
 
 인증키는 서버에만 있고 브라우저로 나가지 않는다.
 
 ## 배포 (Vercel)
-- 주소는 `app.ktkring.com/train/`. 관문 프로젝트 `ktk-ring/app`이 이 프로젝트(`train-route.vercel.app`)로 rewrite한다.
+- 주소는 `app.ktkring.com/train/`. 관문 프로젝트 `ktk-ring/app`이 이 프로젝트(`train-route-pi.vercel.app`)로 rewrite한다.
 - Vercel에서 이 저장소를 Import → Environment Variables에 `TAGO_KEY` → Deploy. 빌드 단계는 없고 `public/`과 `api/` 함수가 배포된다(리전 `icn1`, `vercel.json`).
 - 화면은 API를 상대 경로로 부른다. 그래서 루트(`/`)와 `/train/` 아래 모두에서 같은 코드로 동작한다.
-- 역 목록은 `data/stations.json` 스냅샷을 쓴다. 역이 바뀌면 `npm run stations`로 갱신해서 커밋한다.
+- 역 목록은 `data/stations.js` 스냅샷을 쓴다. 역이 바뀌면 `npm run stations`로 갱신해서 커밋한다.
 
 ## 동작 방식
 - TAGO API는 "A역→B역" 구간 단위로만 열차를 준다 → 출발역·환승 후보역·도착역 사이 구간 시간표를 모아 이어붙임

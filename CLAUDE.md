@@ -6,8 +6,9 @@
 대표 사례: 진주 → 천안 / 천안아산.
 
 ## 운영 방식
-- **배포**: Vercel(Hobby), 함수 리전 `icn1`. 주소는 `app.ktkring.com/train/` — 관문 프로젝트 `ktk-ring/app`이 `train-route.vercel.app`으로 rewrite한다. 그래서 **화면은 API를 상대 경로(`api/route`)로 불러야 한다.** `/api/...`로 쓰면 관문 아래에서 깨진다.
-- **로컬**: `node server.js`(Node 22, 외부 패키지 없음) → http://localhost:8787. Vercel과 같은 처리 코드(`app.js`)를 쓴다.
+- **배포**: Vercel(Hobby), 함수 리전 `icn1`. 주소는 `app.ktkring.com/train/` — 관문 프로젝트 `ktk-ring/app`이 `train-route-pi.vercel.app`으로 rewrite한다. 그래서 **화면은 API를 상대 경로(`api/route`)로 불러야 한다.** `/api/...`로 쓰면 관문 아래에서 깨진다.
+- **로컬**: `npm run local`(= `node local-server.js`, Node 22, 외부 패키지 없음) → http://localhost:8787. Vercel과 같은 처리 코드(`lib/handlers.js`)를 쓴다.
+- **루트에 `server.js`·`app.js`·`index.js`를 두지 않는다.** Vercel이 서버 진입점으로 자동 인식해 정적 파일까지 모든 요청을 가로채고 `FUNCTION_INVOCATION_FAILED`가 난다(2026-11 첫 배포에서 겪음).
 - 공공데이터포털 API는 브라우저에서 부르면 CORS로 막히고 키도 노출되므로 서버가 대신 호출한다.
 - 인증키는 `TAGO_KEY`(일반 인증키 Decoding). 로컬은 `.env`, 배포는 Vercel 환경변수. `.env`와 `cache/`는 커밋하지 않는다. **이 저장소는 GitHub 공개 저장소**다.
 - UI 문구와 주석은 한국어. 화면 문구는 짧은 존댓말("~해요").
@@ -15,19 +16,19 @@
 - 이 PC에서는 `.git` 소유자가 달라 git이 "dubious ownership"으로 막힌다. 사용자가 safe.directory를 등록하기 전에는 `git -c safe.directory=C:/Users/TK/source/repos/train-route ...`로 실행한다.
 
 ## 구조
-- `app.js`: API 처리(`config`, `stations`, `route`). Node 기본 `(req, res)` 핸들러라 로컬 서버와 Vercel 함수가 같이 쓴다.
+- `lib/handlers.js`: API 처리(`config`, `stations`, `route`). Node 기본 `(req, res)` 핸들러라 로컬 서버와 Vercel 함수가 같이 쓴다.
   - 기본 허브역(`DEFAULT_HUBS`), 주요역(`MAJOR`), 인접역 묶음(`NEARBY`)을 정의한다. 인접역은 API에 좌표가 없어 직접 정한다. "인접역 포함"을 켜면 화면이 같은 묶음 역을 함께 보낸다.
   - 호출 한도 보호: 출발·도착 각 8개·허브 30개 상한, 같은 IP 분당 20회(인스턴스 메모리 기준), 경로 응답은 CDN `s-maxage=1800`.
-- `api/{config,stations,route}.js`: Vercel 함수. `app.js`를 다시 내보내기만 한다.
-- `server.js`: 로컬 HTTP 서버. `public/` 서빙 + `/api/*`를 `app.js`로 연결.
-- `data/stations.json`: 역 목록 스냅샷(349개, 시/도 포함). 배포에 포함되어 함수가 시작할 때 API를 부르지 않는다. 갱신은 `npm run stations`.
-- `tago.js`: 국토교통부 TAGO 열차정보 API 클라이언트(https://www.data.go.kr/data/15098552/openapi.do)
+- `api/{config,stations,route}.js`: Vercel 함수. `lib/handlers.js`를 다시 내보내기만 한다.
+- `local-server.js`: 로컬 HTTP 서버. `public/` 서빙 + `/api/*`를 `lib/handlers.js`로 연결.
+- `data/stations.js`: 역 목록 스냅샷(ESM 모듈)(349개, 시/도 포함). 배포에 포함되어 함수가 시작할 때 API를 부르지 않는다. 갱신은 `npm run stations`.
+- `lib/tago.js`: 국토교통부 TAGO 열차정보 API 클라이언트(https://www.data.go.kr/data/15098552/openapi.do)
   - Base URL: `https://apis.data.go.kr/1613000/TrainInfo` (예전 `TrainInfoService`는 "서비스 없음(12)" 오류)
   - 사용 오퍼레이션: `GetCtyCodeList`, `GetCtyAcctoTrainSttnList`, `GetStrtpntAlocFndTrainInfo` (대문자 시작)
   - 응답 특성(2026-11 실측): 시각·요금·열차번호는 문자열(`"20261109095900"`, `"41700"`, `"00208"`), 결과 없음은 `items: {item: []}`, `numOfRows`/`pageNo`는 무시되고 항상 전체 목록이 온다. 게이트웨이 오류는 JSON `OpenAPI_ServiceResponse`로 온다.
   - 캐시: 구간 시간표 `<cacheDir>/trains/<날짜>/<출발>_<도착>.json` 6시간. cacheDir은 로컬 `cache/`, Vercel은 `/tmp`(인스턴스가 살아 있는 동안만).
   - 시각은 조회일 0시 기준 분(minute) 단위로 정규화한다.
-- `planner.js`: 경로 탐색 순수 로직
+- `lib/planner.js`: 경로 탐색 순수 로직
   - API가 "A→B 구간" 단위로만 열차를 주고 정차역 목록은 주지 않는다. 그래서 출발역, 허브역, 도착역 사이 구간을 이어붙이는 방식으로 탐색한다(환승 0~2회).
   - 각 구간에서는 탈 수 있는 열차 중 가장 일찍 도착하는 열차를 고르고, 최소 환승 여유 시간을 적용한다.
   - 같은 열차 번호로 이어지는 조합은 제외한다(직통과 같기 때문).
@@ -39,10 +40,11 @@
 
 ## 현재 상태 (v0.2)
 - 실제 TAGO API로 진주 → 천안·천안아산(2026-11-09) 조회 확인. 환승 1회 0.5초, 2회 0.8초(캐시 없음 기준), UI 정상.
-- 로컬에서 루트(`/`)와 관문 흉내(`/train/` 프록시) 양쪽으로 동작 확인. **Vercel 배포는 아직 안 했다.**
+- 로컬에서 루트(`/`)와 관문 흉내(`/train/` 프록시) 양쪽으로 동작 확인.
+- Vercel 프로젝트 `train-route` → `https://train-route-pi.vercel.app` (리전 `icn1`).
 
 ## 다음 할 일
-1. Vercel 배포 후 `icn1`에서 TAGO API가 응답하는지, 환승 2회 첫 조회가 몇 초 걸리는지 확인. 실제 배포 주소가 `train-route.vercel.app`이 아니면 `ktk-ring/app`의 rewrite를 고친다.
+1. 배포본에서 `icn1` → TAGO API 응답, 환승 2회 첫 조회 시간 확인
 2. 진주 → 천안·천안아산 실제 결과를 상용 서비스 결과와 비교
 3. 수도권 전철 연계 추가(예: 천안아산 ↔ 천안을 1호선·도보 링크로 연결). 후보 데이터는 서울교통공사 열차시간표 API이고, 코레일 구간은 별도 소스가 필요하다.
 4. 환승 2회 탐색 시 허브 간 조회 수가 많은 문제 개선(허브 후보 축소나 방향성 필터)

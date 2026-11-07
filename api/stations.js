@@ -1,2 +1,2 @@
-// Vercel 함수 — 처리는 app.js
-export { stations as default } from '../app.js';
+// Vercel 함수 — 처리는 lib/handlers.js
+export { stations as default } from '../lib/handlers.js';

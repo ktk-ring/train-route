@@ -1,6 +1,7 @@
 // 환승 최적 열차 경로 탐색기 — 로컬 서버
-// 실행: node server.js  (Node 22+, 외부 패키지 없음)
-// Vercel에서는 이 파일 대신 api/*.js와 public/이 쓰인다. API 처리는 둘 다 app.js를 거친다.
+// 실행: npm run local  (= node local-server.js)  (Node 22+, 외부 패키지 없음)
+// Vercel에서는 이 파일 대신 api/*.js와 public/이 쓰인다. API 처리는 둘 다 lib/handlers.js를 거친다.
+// (파일 이름을 server.js·app.js로 두면 Vercel이 서버 진입점으로 자동 인식해 모든 요청을 가로챈다)
 import http from 'node:http';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -8,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 try { process.loadEnvFile(path.join(ROOT, '.env')); } catch {}
-const api = await import('./app.js'); // .env를 읽은 뒤에 불러온다
+const api = await import('./lib/handlers.js'); // .env를 읽은 뒤에 불러온다
 
 const PORT = Number(process.env.PORT || 8787);
 const HOST = process.env.HOST || '0.0.0.0';
