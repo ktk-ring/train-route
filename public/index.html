@@ -187,6 +187,7 @@ h1 small{display:block;font-size:14px;font-weight:500;color:var(--sub);letter-sp
 .jhead{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
 .time{font-size:22px;font-weight:800;letter-spacing:-.03em}
 .time i{font-style:normal;color:var(--faint);font-weight:500;margin:0 4px}
+.time .late{font-size:11px;font-weight:600;color:var(--sub);background:var(--soft);border-radius:5px;padding:1px 5px;margin-left:6px;letter-spacing:0;vertical-align:middle}
 .dur{font-size:13px;color:var(--sub);margin-left:auto}
 .tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
 .tag{font-size:11px;font-weight:700;padding:3px 8px;border-radius:99px;background:var(--soft);color:var(--sub)}
@@ -808,7 +809,7 @@ function render(keepHead = false) {
     }).join('');
     const best = j.arr === fastest;
     return `<article class="j ${best ? 'best' : ''}" style="--k:${Math.min(idx, 10)}">
-      <div class="jhead"><span class="time num">${hm(j.dep)}<i>→</i>${hm(j.arr)}</span><span class="dur num">${dur(j.duration)}</span></div>
+      <div class="jhead"><span class="time num">${hm(j.dep)}<i>→</i>${hm(j.arr)}${j.legs[n - 1].link && j.legs[n - 1].headway ? '<small class="late">늦어도</small>' : ''}</span><span class="dur num">${dur(j.duration)}</span></div>
       <div class="tags">${best ? '<span class="tag b">가장 일찍 도착</span>' : ''}<span class="tag">${j.transfers ? `환승 ${j.transfers}회` : '직통'}</span>${lk.length ? `<span class="tag">${esc([...new Set(lk.map((l) => l.grade))].join('·'))} 연계</span>` : ''}${gain}${j.fare ? `<span class="tag fare num">${j.fare.toLocaleString()}원${lk.length ? ' (열차만)' : n > 1 ? ' (합계)' : ''}</span>` : ''}</div>
       <div class="tl">${tl}</div>
     </article>`;
