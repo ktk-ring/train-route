@@ -41,7 +41,8 @@
 - `test/planner.test.js`: 플래너·링크 단위 테스트(`npm test` = `node --test`, API를 부르지 않음). 플래너나 링크를 고치면 돌린다.
 - `api/{config,stations,route}.js`: Vercel 함수. `lib/handlers.js`를 다시 내보내기만 한다.
 - `local-server.js`: 로컬 HTTP 서버. `public/` 서빙 + `/api/*`를 `lib/handlers.js`로 연결.
-- `data/stations.js`: 역 목록 스냅샷(ESM 모듈)(349개, 시/도 포함). 배포에 포함되어 함수가 시작할 때 API를 부르지 않는다. 갱신은 `npm run stations`.
+- `data/stations.js`: 역 목록 스냅샷(ESM 모듈)(350개, 시/도 포함). 배포에 포함되어 함수가 시작할 때 API를 부르지 않는다. 갱신은 `npm run stations`.
+  - **평택지제는 TAGO 역 목록에 없다**(2026-11). `lib/tago.js`의 `EXTRA_STATIONS`에 `NATH30536`으로 넣어 두어 갱신해도 남는다. 역 ID는 "노선 코드 + 기점 거리(0.1km)" 규칙(예: NATH30 수서고속선, 수서 30000·동탄 30326)이라 후보를 좁혀 구간 조회로 찾았다. 옛 SRT 열차는 이제 KTX 등급으로 온다.
 - `lib/tago.js`: 국토교통부 TAGO 열차정보 API 클라이언트(https://www.data.go.kr/data/15098552/openapi.do)
   - Base URL: `https://apis.data.go.kr/1613000/TrainInfo` (예전 `TrainInfoService`는 "서비스 없음(12)" 오류)
   - 사용 오퍼레이션: `GetCtyCodeList`, `GetCtyAcctoTrainSttnList`, `GetStrtpntAlocFndTrainInfo` (대문자 시작)

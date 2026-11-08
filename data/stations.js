@@ -319,6 +319,7 @@ export default [
 {"id":"NATN10625","name":"평창","city":"강원특별자치도","cityCode":"32"},
 {"id":"NAT880702","name":"평촌","city":"경상남도","cityCode":"38"},
 {"id":"NAT010754","name":"평택","city":"경기도","cityCode":"31"},
+{"id":"NATH30536","name":"평택지제","city":"경기도","cityCode":"31"},
 {"id":"NAT752245","name":"평해","city":"경상북도","cityCode":"37"},
 {"id":"NAT8B0351","name":"포항","city":"경상북도","cityCode":"37"},
 {"id":"NAT022053","name":"풍기","city":"경상북도","cityCode":"37"},
