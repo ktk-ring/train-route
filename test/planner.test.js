@@ -169,10 +169,41 @@ test('시간표 조회가 실패하면 대략치로 계산한다', async () => {
   } finally { console.warn = warn; }
 });
 
-test('요일 코드: 평일 01, 토·일 03', () => {
+test('요일 코드: 평일 01, 토·일·공휴일 03', () => {
   assert.equal(dayCodeOf('20261112'), '01'); // 목
   assert.equal(dayCodeOf('20261114'), '03'); // 토
   assert.equal(dayCodeOf('20261115'), '03'); // 일
+  assert.equal(dayCodeOf('20261225'), '03'); // 성탄절(금)
+  assert.equal(dayCodeOf('20270209'), '03'); // 설 대체공휴일(화)
+  assert.equal(dayCodeOf('20270210'), '01'); // 수
+});
+
+test('환승 링크: 환승역에서 다음 열차를 기다려 이어 탄다', async () => {
+  const SS = LINKS.find((x) => x.a === '서울' && x.b === '수서');
+  const tl = createLinks((n) => ({ 서울: 'A', 수서: 'B' })[n], {
+    subwayDeps: async (id) => (id === SS.sideA.sub ? [hm('09:00')] : id === SS.via.ab.sub ? [hm('09:05'), hm('09:20')] : []),
+  });
+  const [t] = await tl.trains('A', 'B', DATE);
+  // 09:00 탑승 → 09:05 충무로 + 환승 도보 3분 = 09:08 → 09:20 열차 → 수서 + 내리는 쪽 도보
+  assert.equal(t.via, '충무로');
+  assert.equal(t.dep, hm('09:00') - SS.sideA.walk);
+  assert.equal(t.arr, Math.ceil(hm('09:20') + SS.via.ab.ride2) + SS.sideB.walk);
+  // 막차 뒤라 갈아탈 열차가 없으면 그 출발은 뺀다
+  const tl2 = createLinks((n) => ({ 서울: 'A', 수서: 'B' })[n], {
+    subwayDeps: async (id) => (id === SS.sideA.sub ? [hm('09:00'), hm('23:50')] : id === SS.via.ab.sub ? [hm('09:20')] : []),
+  });
+  assert.equal((await tl2.trains('A', 'B', DATE)).filter((x) => x.dep < 1440).length, 1);
+});
+
+test('환승 대기가 3시간을 넘는 경로는 뺀다', async () => {
+  const { journeys } = await planRoutes({
+    origins: ['A'], dests: ['D'], hubs: ['H'], departAfter: 0, maxTransfers: 1, minTransfer: 0,
+    getLegs: async (a, b) => ({
+      'A>H': [tr('1', 'A', 'H', '21:00', '23:00'), tr('2', 'A', 'H', '07:00', '08:00')],
+      'H>D': [tr('3', 'H', 'D', '09:00', '10:00'), { ...tr('4', 'H', 'D', '05:00', '06:00'), dep: 1440 + 300, arr: 1440 + 360 }],
+    })[`${a}>${b}`] || [],
+  });
+  assert.deepEqual(journeys.map((j) => j.legs[0].no), ['2']);
 });
 
 test('링크만으로 된 여정은 결과에서 뺀다', async () => {
@@ -210,9 +241,15 @@ test('LINKS 값이 올바른 형식이다', () => {
     assert.ok(l.a && l.b && l.a !== l.b && l.mode, JSON.stringify(l));
     assert.ok(l.ride > 0 && l.headway >= 0, JSON.stringify(l));
     assert.ok(hm(l.first) < hm(l.last) && hm(l.last) <= 1440, JSON.stringify(l));
+    const boards = (s) => s.subs || [[s.sub, s.dir]];
+    const okBoard = (s) => boards(s).every(([id, ud]) => /^MTR/.test(id) && /^[UD]$/.test(ud));
     for (const s of [l.sideA, l.sideB].filter(Boolean)) {
-      assert.ok(/^MTR/.test(s.sub) && s.walk >= 0 && /^[UD]$/.test(s.dir), JSON.stringify(l));
+      assert.ok(okBoard(s) && s.walk >= 0, JSON.stringify(l));
     }
     assert.equal(!!l.sideA, !!l.sideB, JSON.stringify(l));
+    if (l.via) {
+      assert.ok(l.sideA && l.via.name && l.via.walk >= 0, JSON.stringify(l));
+      for (const g of [l.via.ab, l.via.ba]) assert.ok(g.ride1 > 0 && g.ride2 > 0 && okBoard(g), JSON.stringify(l));
+    }
   }
 });
